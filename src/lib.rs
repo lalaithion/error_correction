@@ -2,7 +2,7 @@ extern crate rand;
 
 mod bitview;
 
-pub mod duplicate;
+pub mod repeat;
 
 pub fn add_errors(input: &[u8]) -> Vec<u8> {
     use rand::Rng;

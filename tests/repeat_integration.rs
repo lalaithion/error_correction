@@ -1,6 +1,6 @@
 extern crate error_correction;
 
-use error_correction::duplicate::*;
+use error_correction::repeat::*;
 use error_correction::add_errors;
 
 #[test]
