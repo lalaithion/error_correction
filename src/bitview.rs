@@ -64,7 +64,7 @@ pub fn empty_part(capacity: usize) -> PartBytes {
 /// # to_part_bytes
 ///
 /// Can be used as an accumulator function with .fold() to
-/// collect an iterator over a BitView back into a `[u8]`
+/// collect an iterator over a BitView back into a [u8]
 pub fn to_part_bytes(mut acc: PartBytes, element: Vec<bool>) -> PartBytes {
     let mut max = acc.data.len() as isize - 1;
     for boolean in element {
@@ -80,6 +80,26 @@ pub fn to_part_bytes(mut acc: PartBytes, element: Vec<bool>) -> PartBytes {
         acc.offset = (acc.offset + 1) % 8;
     }
     return acc
+}
+
+/// # result_to_part_bytes
+///
+/// Can be used as an accumulator function with .fold() to
+/// collect an iterator of type Result<Vec<bool>, &'static str>
+/// into a [u8]
+pub fn result_to_part_bytes(accumulator: Result<PartBytes,&'static str>,
+    element: Result<Vec<bool>, &'static str> )
+    ->  Result<PartBytes, &'static str>
+{
+    if let Ok(acc) = accumulator {
+        if let Ok(elem) = element {
+            Ok(to_part_bytes(acc, elem))
+        } else {
+            Err(element.unwrap_err())
+        }
+    } else {
+        accumulator
+    }
 }
 
 /// # to_bytes
@@ -107,6 +127,21 @@ pub fn auto_pipeline(input: &[u8], stride: usize, function: &Fn(Vec<bool>) -> Ve
             .map(function)
             .fold(empty_part(input.len()), to_part_bytes)
     )
+}
+
+/// # result_auto_pipleine
+///
+/// Performs the operations this file is intended to facilitate with one function call.
+/// However, performance may be improved by performing the operations manually.
+/// Useful in cases where errors can occur.
+pub fn result_auto_pipeline(input: &[u8], stride: usize,
+    function: &Fn(Vec<bool>) -> Result<Vec<bool>, &'static str>)
+    -> Result<Vec<u8>, &'static str>
+{
+        n_bits(&input, stride)
+            .map(function)
+            .fold(Ok(empty_part(input.len())), result_to_part_bytes)
+            .map(to_bytes)
 }
 
 #[cfg(test)]
@@ -151,5 +186,33 @@ mod tests {
         let output: [u8; 4] = [0, 3, 0, 12];
         let processed = auto_pipeline(&data, 3, &double);
         assert_eq!(&output[..], &processed[..]);
+    }
+    
+    fn result_double(input: Vec<bool>) -> Result<Vec<bool>, &'static str> {
+        let mut out = Vec::with_capacity(2 * input.len());
+        for i in input {
+            out.push(i);
+            out.push(i);
+        }
+        return Ok(out);
+    }
+    
+    #[test]
+    fn result_doubled() {
+        let data: [u8; 2] = [1, 2];
+        let output: [u8; 4] = [0, 3, 0, 12];
+        let processed = result_auto_pipeline(&data, 3, &result_double).unwrap();
+        assert_eq!(&output[..], &processed[..]);
+    }
+    
+    fn result_fails(_input: Vec<bool>) -> Result<Vec<bool>, &'static str> {
+        Err("This should fail")
+    }
+    
+    #[test]
+    fn result_failed() {
+        let data: [u8; 2] = [1, 2];
+        let processed = result_auto_pipeline(&data, 3, &result_fails);
+        assert!(processed.is_err());
     }
 }

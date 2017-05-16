@@ -30,7 +30,32 @@ pub fn encode(buffer: &[u8], number: usize) -> Vec<u8> {
     auto_pipeline(buffer, 1, &(|x| encode_vec(x, number)))
 }
 
-fn decode_vec(input: Vec<bool>) -> Vec<bool> {
+fn decode_vec(input: Vec<bool>) -> Result<Vec<bool>, &'static str> {
+    println!("{:?}", input);
+    let number = input.len();
+    let mut hamming_w = 0;
+    for b in input {
+        if b { hamming_w += 1; }
+    }
+    if hamming_w * 2 > number {
+        Ok(vec![true])
+    } else if hamming_w * 2 < number {
+        Ok(vec![false])
+    } else { // hamming_w == number
+        Err("Unrecoverable corruption has occured in this data.")
+    }
+}
+
+/// # panic_decode
+///
+/// decode reverses encode, and takes a majority vote among number
+/// bits to determine what the original bit value was. Returns a result,
+/// because decoding can fail when used with an even number.
+pub fn decode(buffer: &[u8], number: usize) -> Result<Vec<u8>, &'static str> {
+    result_auto_pipeline(buffer, number, &decode_vec)
+}
+
+fn panic_decode_vec(input: Vec<bool>) -> Vec<bool> {
     println!("{:?}", input);
     let number = input.len();
     let mut hamming_w = 0;
@@ -46,10 +71,11 @@ fn decode_vec(input: Vec<bool>) -> Vec<bool> {
     }
 }
 
-/// # decode
+/// # panic_decode
 ///
 /// decode reverses encode, and takes a majority vote among number
-/// bits to determine what the original bit value was.
-pub fn decode(buffer: &[u8], number: usize) -> Vec<u8> {
-    auto_pipeline(buffer, number, &decode_vec)
+/// bits to determine what the original bit value was. THIS VERSION
+/// PANICS IF THERE IS AN ERROR
+pub fn panic_decode(buffer: &[u8], number: usize) -> Vec<u8> {
+    auto_pipeline(buffer, number, &panic_decode_vec)
 }

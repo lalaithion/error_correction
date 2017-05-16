@@ -24,9 +24,9 @@ fn large_duplicate_round_trip() {
 #[test]
 fn duplicate_errors() {
     let input = vec![1,2,34,56];
-    let encoded = encode(&input, 3);
+    let encoded = encode(&input, 5);
     println!("{:?}", encoded);
-    let output = decode(&add_errors(&encoded), 3);
+    let output = decode(&add_errors(&encoded), 5);
     assert_eq!(input, output);
 }
 
@@ -34,5 +34,5 @@ fn duplicate_errors() {
 #[should_panic]
 fn unrecoverable() {
     let encoded = vec![0,0,0,0,0,0,0,15];
-    let output = decode(&encoded, 8);
+    decode(&encoded, 8);
 }
