@@ -21,7 +21,7 @@ impl<'a> Iterator for BitView<'a> {
             let mut buffer = Vec::with_capacity(self.stride);
             
             for i in 0..self.stride {
-                let index = self.index + i / 8;
+                let index = self.index + (self.offset + i) / 8;
                 let offset = (self.offset + i) % 8;
                 if index >= self.data.len() {
                     buffer.push(false);
@@ -97,6 +97,10 @@ pub fn to_bytes(pb: PartBytes) -> Vec<u8> {
     }
 }
 
+/// # auto_pipleine
+///
+/// Performs the operations this file is intended to facilitate with one function call.
+/// However, performance may be improved by performing the operations manually.
 pub fn auto_pipeline(input: &[u8], stride: usize, function: &Fn(Vec<bool>) -> Vec<bool>) -> Vec<u8> {
     to_bytes(
         n_bits(&input, stride)
@@ -119,13 +123,13 @@ mod tests {
 
     #[test]
     fn identity_weird_stride() {
-        let data: [u8; 1] = [1];
-        let processed = auto_pipeline(&data, 5, &(|x| x));
+        let data: [u8; 12] = [1,3,5,7,9,11,13,15,17,19,21,23];
+        let processed = auto_pipeline(&data, 3, &(|x| x));
         assert_eq!(&data[..], &processed[..]);
     }
 
     fn double(input: Vec<bool>) -> Vec<bool> {
-        let mut out = Vec::with_capacity(input.len());
+        let mut out = Vec::with_capacity(2 * input.len());
         for i in input {
             out.push(i);
             out.push(i);
