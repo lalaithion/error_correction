@@ -52,3 +52,9 @@ fn unrecoverable_result() {
     let encoded = vec![0,0,0,0,0,0,0,15];
     assert!(decode(&encoded, 8).is_err());
 }
+
+#[test]
+fn wrong_result() {
+    let encoded = vec![0,0,0,0,0,0,0,15];
+    assert_eq!(wrong_decode(&encoded, 8), vec![0]);
+}
