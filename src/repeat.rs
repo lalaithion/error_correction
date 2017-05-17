@@ -79,3 +79,28 @@ fn panic_decode_vec(input: Vec<bool>) -> Vec<bool> {
 pub fn panic_decode(buffer: &[u8], number: usize) -> Vec<u8> {
     auto_pipeline(buffer, number, &panic_decode_vec)
 }
+
+
+fn wrong_decode_vec(input: Vec<bool>) -> Vec<bool> {
+    println!("{:?}", input);
+    let number = input.len();
+    let mut hamming_w = 0;
+    for b in input {
+        if b { hamming_w += 1; }
+    }
+    if hamming_w * 2 > number {
+        vec![true]
+    } else {
+        vec![false]
+    }
+}
+
+/// # wrong_decode
+///
+/// decode reverses encode, and takes a majority vote among number
+/// bits to determine what the original bit value was. In case of an
+/// unrecoverable error, this version of decode just provides a possibly
+/// wrong value.
+pub fn wrong_decode(buffer: &[u8], number: usize) -> Vec<u8> {
+    auto_pipeline(buffer, number, &wrong_decode_vec)
+}
