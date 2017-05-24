@@ -49,8 +49,9 @@ fn decode_vec(input: Vec<bool>) -> Result<Vec<bool>, &'static str> {
 /// # decode
 ///
 /// decode reverses encode, and takes a majority vote among number
-/// bits to determine what the original bit value was. Returns a result,
-/// because decoding can fail when used with an even number.
+/// bits to determine what the original bit value was. Returns a result
+/// in case of an unrecoverable error. (unrecoverable errors can only
+/// occur with an even number)
 pub fn decode(buffer: &[u8], number: usize) -> Result<Vec<u8>, &'static str> {
     result_auto_pipeline(buffer, number, &decode_vec)
 }
@@ -75,7 +76,8 @@ fn panic_decode_vec(input: Vec<bool>) -> Vec<bool> {
 ///
 /// decode reverses encode, and takes a majority vote among number
 /// bits to determine what the original bit value was. THIS VERSION
-/// PANICS IF THERE IS AN ERROR
+/// PANICS IF THERE IS AN ERROR. (unrecoverable errors can only occur
+/// with an even number)
 pub fn panic_decode(buffer: &[u8], number: usize) -> Vec<u8> {
     auto_pipeline(buffer, number, &panic_decode_vec)
 }
@@ -100,7 +102,7 @@ fn wrong_decode_vec(input: Vec<bool>) -> Vec<bool> {
 /// decode reverses encode, and takes a majority vote among number
 /// bits to determine what the original bit value was. In case of an
 /// unrecoverable error, this version of decode just provides a possibly
-/// wrong value.
+/// wrong value. (unrecoverable errors can only occur with an even number)
 pub fn wrong_decode(buffer: &[u8], number: usize) -> Vec<u8> {
     auto_pipeline(buffer, number, &wrong_decode_vec)
 }
