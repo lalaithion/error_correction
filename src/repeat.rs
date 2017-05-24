@@ -46,7 +46,7 @@ fn decode_vec(input: Vec<bool>) -> Result<Vec<bool>, &'static str> {
     }
 }
 
-/// # panic_decode
+/// # decode
 ///
 /// decode reverses encode, and takes a majority vote among number
 /// bits to determine what the original bit value was. Returns a result,
