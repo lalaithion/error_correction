@@ -4,10 +4,17 @@
 /// and change in position (a stride) to that data buffer. Can be
 /// iterated over, providing a `Vec<bool>` starting at the position
 /// and the stride long.
+
+pub const DISCARD_NONE: u8 = 0;
+pub const DISCARD_BITS: u8 = 1;
+pub const DISCARD_BYTES: u8 = 2;
+pub const DISCARD_ALL: u8 = DISCARD_BITS | DISCARD_BYTES;
+
 pub struct BitView<'a> {
     stride: usize,
     index: usize,
     offset: usize,
+    discard: bool,
     data: &'a [u8]
 }
 
@@ -24,7 +31,11 @@ impl<'a> Iterator for BitView<'a> {
                 let index = self.index + (self.offset + i) / 8;
                 let offset = (self.offset + i) % 8;
                 if index >= self.data.len() {
-                    buffer.push(false);
+                    if self.discard {
+                        return None;
+                    } else {
+                        buffer.push(false);
+                    }
                 } else {
                     let bitflag = (2 as u8).pow(7 - offset as u32);
                     buffer.push((self.data[index] & bitflag) != 0);
@@ -41,8 +52,8 @@ impl<'a> Iterator for BitView<'a> {
 /// # n_bits
 ///
 /// Creates a BitView from a `&[u8]`, with a given stride
-pub fn n_bits<'a>(buffer: &'a [u8], n: usize) -> BitView<'a> {
-    BitView{stride: n, index: 0, offset: 0, data: buffer}
+pub fn n_bits<'a>(buffer: &'a [u8], n: usize, discard: bool) -> BitView<'a> {
+    BitView{stride: n, index: 0, offset: 0, discard: discard, data: buffer}
 }
 
 /// # PartBytes
@@ -51,14 +62,15 @@ pub fn n_bits<'a>(buffer: &'a [u8], n: usize) -> BitView<'a> {
 /// a fractional number of bytes
 pub struct PartBytes {
     data: Vec<u8>,
-    offset: u8
+    offset: u8,
+    discard: bool,
 }
 
 /// # empty_part
 ///
 /// Creates an empty PartBytes
-pub fn empty_part(capacity: usize) -> PartBytes {
-    PartBytes { data: Vec::with_capacity(capacity), offset: 0}
+pub fn empty_part(capacity: usize, discard: bool) -> PartBytes {
+    PartBytes { data: Vec::with_capacity(capacity), offset: 0, discard: discard}
 }
 
 /// # to_part_bytes
@@ -109,11 +121,13 @@ pub fn result_to_part_bytes(accumulator: Result<PartBytes,&'static str>,
 pub fn to_bytes(pb: PartBytes) -> Vec<u8> {
     if pb.offset == 0 {
         pb.data
-    } else {
+    } else if pb.discard {
         let mut buf = pb.data;
         let end = buf.len()-1;
         buf.remove(end);
         buf
+    } else {
+        pb.data
     }
 }
 
@@ -121,11 +135,13 @@ pub fn to_bytes(pb: PartBytes) -> Vec<u8> {
 ///
 /// Performs the operations this file is intended to facilitate with one function call.
 /// However, performance may be improved by performing the operations manually.
-pub fn auto_pipeline(input: &[u8], stride: usize, function: &Fn(Vec<bool>) -> Vec<bool>) -> Vec<u8> {
+pub fn auto_pipeline(input: &[u8], stride: usize,
+                     function: &Fn(Vec<bool>) -> Vec<bool>,
+                     discard_flags: u8) -> Vec<u8> {
     to_bytes(
-        n_bits(&input, stride)
+        n_bits(&input, stride, discard_flags & DISCARD_BITS != 0)
             .map(function)
-            .fold(empty_part(input.len()), to_part_bytes)
+            .fold(empty_part(input.len(), discard_flags & DISCARD_BYTES != 0), to_part_bytes)
     )
 }
 
@@ -135,12 +151,13 @@ pub fn auto_pipeline(input: &[u8], stride: usize, function: &Fn(Vec<bool>) -> Ve
 /// However, performance may be improved by performing the operations manually.
 /// Useful in cases where errors can occur.
 pub fn result_auto_pipeline(input: &[u8], stride: usize,
-    function: &Fn(Vec<bool>) -> Result<Vec<bool>, &'static str>)
+                            function: &Fn(Vec<bool>) -> Result<Vec<bool>, &'static str>,
+                            discard_flags: u8)
     -> Result<Vec<u8>, &'static str>
 {
-        n_bits(&input, stride)
+        n_bits(&input, stride, discard_flags & DISCARD_BITS != 0)
             .map(function)
-            .fold(Ok(empty_part(input.len())), result_to_part_bytes)
+            .fold(Ok(empty_part(input.len(), discard_flags & DISCARD_BYTES != 0)), result_to_part_bytes)
             .map(to_bytes)
 }
 
@@ -152,14 +169,14 @@ mod tests {
     #[test]
     fn identity() {
         let data: [u8; 12] = [1,2,3,4,5,6,7,8,9,10,11,12];
-        let processed = auto_pipeline(&data, 4, &(|x| x));
+        let processed = auto_pipeline(&data, 4, &(|x| x), DISCARD_NONE);
         assert_eq!(&data[..], &processed[..]);
     }
 
     #[test]
     fn identity_weird_stride() {
         let data: [u8; 12] = [1,3,5,7,9,11,13,15,17,19,21,23];
-        let processed = auto_pipeline(&data, 3, &(|x| x));
+        let processed = auto_pipeline(&data, 3, &(|x| x), DISCARD_NONE);
         assert_eq!(&data[..], &processed[..]);
     }
 
@@ -176,7 +193,7 @@ mod tests {
     fn doubled() {
         let data: [u8; 2] = [1, 2];
         let output: [u8; 4] = [0, 3, 0, 12];
-        let processed = auto_pipeline(&data, 8, &double);
+        let processed = auto_pipeline(&data, 8, &double, DISCARD_NONE);
         assert_eq!(&output[..], &processed[..]);
     }
     
@@ -184,7 +201,7 @@ mod tests {
     fn doubled_weird_stride() {
         let data: [u8; 2] = [1, 2];
         let output: [u8; 4] = [0, 3, 0, 12];
-        let processed = auto_pipeline(&data, 3, &double);
+        let processed = auto_pipeline(&data, 3, &double, DISCARD_BYTES);
         assert_eq!(&output[..], &processed[..]);
     }
     
@@ -201,7 +218,7 @@ mod tests {
     fn result_doubled() {
         let data: [u8; 2] = [1, 2];
         let output: [u8; 4] = [0, 3, 0, 12];
-        let processed = result_auto_pipeline(&data, 3, &result_double).unwrap();
+        let processed = result_auto_pipeline(&data, 3, &result_double, DISCARD_BYTES).unwrap();
         assert_eq!(&output[..], &processed[..]);
     }
     
@@ -212,7 +229,7 @@ mod tests {
     #[test]
     fn result_failed() {
         let data: [u8; 2] = [1, 2];
-        let processed = result_auto_pipeline(&data, 3, &result_fails);
+        let processed = result_auto_pipeline(&data, 3, &result_fails, DISCARD_NONE);
         assert!(processed.is_err());
     }
 }

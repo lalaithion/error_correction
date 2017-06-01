@@ -46,7 +46,6 @@ fn results() {
     assert!(output.is_ok());
 }
 
-
 #[test]
 fn unrecoverable_result() {
     let encoded = vec![0,0,0,0,0,0,0,15];
