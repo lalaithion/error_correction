@@ -1,6 +1,6 @@
 [package]
 name = "error_correction"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Izaak Weiss <izwe5504@colorado.edu>"]
 
 [dependencies]
