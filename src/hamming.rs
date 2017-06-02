@@ -12,15 +12,15 @@ use bitview::*;
 use ::binary_str;
 
 fn parity_to_data(parity: usize) -> usize {
-    ((2u64).pow(parity as u32) - parity as u64 - 1) as usize
+    (2u64.pow(parity as u32) - parity as u64 - 1) as usize
 }
 
 fn parity_to_length(parity: usize) -> usize {
-    ((2u64).pow(parity as u32) - 1) as usize
+    (2u64.pow(parity as u32) - 1) as usize
 }
 
 fn is_power_of_2(number: usize) -> bool {
-    // bitwise hack for this thing. fails for number == 0.
+    // bitwise hack for this thing, very fast. fails for number == 0.
     number & (number - 1) == 0
 }
 
@@ -116,8 +116,8 @@ pub fn encode(buffer: &[u8], parity: usize) -> Vec<u8> {
 /// # decode
 ///
 /// decode reverses encode, and takes a majority vote among number
-/// bits to determine what the original bit value was. Returns a result,
-/// because decoding can fail when used with an even number.
+/// bits to determine what the original bit value was. Decoding can never fail,
+/// so there is only one decode function
 pub fn decode(buffer: &[u8], parity: usize) -> Vec<u8> {
     auto_pipeline(buffer, parity_to_length(parity), &(|x| decode_vec(x, parity)), DISCARD_ALL)
 }

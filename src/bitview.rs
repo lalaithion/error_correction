@@ -23,6 +23,11 @@ impl<'a> Iterator for BitView<'a> {
     
     fn next(&mut self) -> Option<Vec<bool>> {
         if self.index >= self.data.len() {
+            // if the current index is past the end of the data
+            None
+        } else if self.discard && (self.index + (self.offset + self.stride - 1)/8 >= self.data.len()) {
+            // if we discard bits AND the for loop below would go past the end of the data
+            // discard everything left in the buffer
             None
         } else {
             let mut buffer = Vec::with_capacity(self.stride);
@@ -31,11 +36,7 @@ impl<'a> Iterator for BitView<'a> {
                 let index = self.index + (self.offset + i) / 8;
                 let offset = (self.offset + i) % 8;
                 if index >= self.data.len() {
-                    if self.discard {
-                        return None;
-                    } else {
-                        buffer.push(false);
-                    }
+                    buffer.push(false);
                 } else {
                     let bitflag = (2 as u8).pow(7 - offset as u32);
                     buffer.push((self.data[index] & bitflag) != 0);
@@ -100,8 +101,8 @@ pub fn to_part_bytes(mut acc: PartBytes, element: Vec<bool>) -> PartBytes {
 /// collect an iterator of type Result<Vec<bool>, &'static str>
 /// into a [u8]
 pub fn result_to_part_bytes(accumulator: Result<PartBytes,&'static str>,
-    element: Result<Vec<bool>, &'static str> )
-    ->  Result<PartBytes, &'static str>
+                            element: Result<Vec<bool>, &'static str> )
+                            ->  Result<PartBytes, &'static str>
 {
     if let Ok(acc) = accumulator {
         if let Ok(elem) = element {
@@ -153,7 +154,7 @@ pub fn auto_pipeline(input: &[u8], stride: usize,
 pub fn result_auto_pipeline(input: &[u8], stride: usize,
                             function: &Fn(Vec<bool>) -> Result<Vec<bool>, &'static str>,
                             discard_flags: u8)
-    -> Result<Vec<u8>, &'static str>
+                            -> Result<Vec<u8>, &'static str>
 {
         n_bits(&input, stride, discard_flags & DISCARD_BITS != 0)
             .map(function)
